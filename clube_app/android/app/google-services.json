@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "375020778229",
+    "project_id": "clube-vinho-app",
+    "storage_bucket": "clube-vinho-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:375020778229:android:57d1edd121c96ce324cbbc",
+        "android_client_info": {
+          "package_name": "com.clubevinho.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVDEeZqoVCzyRkT-BbIVQvk1A5b0NDXbg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gcm_defaultSenderId" translatable="false">375020778229</string>
+    <string name="google_api_key" translatable="false">AIzaSyDVDEeZqoVCzyRkT-BbIVQvk1A5b0NDXbg</string>
+    <string name="google_app_id" translatable="false">1:375020778229:android:57d1edd121c96ce324cbbc</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyDVDEeZqoVCzyRkT-BbIVQvk1A5b0NDXbg</string>
+    <string name="google_storage_bucket" translatable="false">clube-vinho-app.firebasestorage.app</string>
+    <string name="project_id" translatable="false">clube-vinho-app</string>
+</resources>
