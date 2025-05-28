@@ -1,18 +1,18 @@
-# codemagic.yaml
 workflows:
   build-ios:
-    name: Build iOS App
+    name: Build iOS with iOS 13.0
     environment:
       flutter: stable
       xcode: latest
     scripts:
-      - name: Set iOS Deployment Target
-        script: |
-          echo "Patching Podfile to use iOS 13.0"
-          sed -i '' "s/platform :ios, '.*'/platform :ios, '13.0'/" ios/Podfile || echo "No Podfile to patch yet"
-      - name: Install dependencies
+      - name: Install Flutter dependencies
         script: |
           flutter pub get
+      - name: Set iOS Deployment Target to 13.0
+        script: |
+          echo "Patching Podfile to iOS 13.0..."
+          sed -i '' "s/platform :ios, '[0-9.]*/platform :ios, '13.0/" ios/Podfile
+          cat ios/Podfile
       - name: Build iOS
         script: |
           flutter build ios --release --no-codesign
