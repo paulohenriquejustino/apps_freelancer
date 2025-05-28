@@ -1,12 +1,24 @@
+# codemagic.yaml
 workflows:
-  ios-release-no-shorebird:
-    name: iOS Release
+  build-ios:
+    name: Build iOS App
     environment:
       flutter: stable
       xcode: latest
     scripts:
-      - flutter build ios --simulator
-      - mkdir -p build/ios/ipa
-      - zip -r build/ios/ipa/Runner.app.zip build/ios/iphonesimulator/Runner.app
+      - name: Set iOS Deployment Target
+        script: |
+          echo "Patching Podfile to use iOS 13.0"
+          sed -i '' "s/platform :ios, '.*'/platform :ios, '13.0'/" ios/Podfile || echo "No Podfile to patch yet"
+      - name: Install dependencies
+        script: |
+          flutter pub get
+      - name: Build iOS
+        script: |
+          flutter build ios --release --no-codesign
     artifacts:
-      - build/ios/ipa/Runner.app.zip
+      - build/ios/iphoneos/*.ipa
+    publishing:
+      email:
+        recipients:
+          - paulojustino.dev@gmail.com
