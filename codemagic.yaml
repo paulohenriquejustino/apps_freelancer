@@ -8,17 +8,124 @@ workflows:
       - name: Install Flutter dependencies
         script: |
           flutter pub get
-      - name: Set iOS Deployment Target to 13.0
+          
+      - name: Setup iOS project and create/fix Podfile
         script: |
-          echo "Patching Podfile to iOS 13.0..."
-          sed -i '' "s/platform :ios, '[0-9.]*/platform :ios, '13.0/" ios/Podfile
+          echo "Setting up iOS project for deployment target 13.0..."
+          
+          # Certifica que o diretório ios existe
+          mkdir -p ios/Runner.xcodeproj
+          mkdir -p ios/Flutter
+          
+          # Remove arquivos antigos se existirem
+          cd ios
+          rm -rf Pods Podfile.lock
+          cd ..
+          
+          # Cria ou substitui o Podfile com configuração correta
+          cat > ios/Podfile << 'EOF'
+          platform :ios, '13.0'
+          
+          ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+          
+          project 'Runner', {
+            'Debug' => :debug,
+            'Profile' => :release,
+            'Release' => :release,
+          }
+          
+          def flutter_root
+            generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+            unless File.exist?(generated_xcode_build_settings_path)
+              raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+            end
+          
+            File.foreach(generated_xcode_build_settings_path) do |line|
+              matches = line.match(/FLUTTER_ROOT\=(.*)/)
+              return matches[1].strip if matches
+            end
+            raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+          end
+          
+          require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+          
+          flutter_ios_podfile_setup
+          
+          target 'Runner' do
+            use_frameworks!
+            use_modular_headers!
+          
+            flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+          end
+          
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              flutter_additional_ios_build_settings(target)
+              target.build_configurations.each do |config|
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+              end
+            end
+          end
+          EOF
+          
+          echo "Podfile created/updated successfully!"
+          echo "Contents of Podfile:"
           cat ios/Podfile
+          
+      - name: Fix iOS deployment target in project files
+        script: |
+          echo "Fixing iOS deployment target in project files..."
+          
+          # Corrige o project.pbxproj se existir
+          if [ -f "ios/Runner.xcodeproj/project.pbxproj" ]; then
+            echo "Updating project.pbxproj..."
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]*\.[0-9]*/IPHONEOS_DEPLOYMENT_TARGET = 13.0/g' ios/Runner.xcodeproj/project.pbxproj
+          fi
+          
+          # Corrige AppFrameworkInfo.plist se existir
+          if [ -f "ios/Flutter/AppFrameworkInfo.plist" ]; then
+            echo "Updating AppFrameworkInfo.plist..."
+            /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 13.0" ios/Flutter/AppFrameworkInfo.plist 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 13.0" ios/Flutter/AppFrameworkInfo.plist
+          fi
+          
+          echo "iOS deployment target configuration completed!"
+          
+      - name: Install CocoaPods dependencies
+        script: |
+          echo "Installing CocoaPods dependencies..."
+          cd ios && pod install --verbose
+          
       - name: Build iOS
         script: |
+          echo "Building iOS app..."
           flutter build ios --release --no-codesign
+          
+      - name: Create IPA (optional)
+        script: |
+          echo "Creating IPA file..."
+          mkdir -p build/ios/iphoneos
+          # Se você quiser criar um IPA, descomente as linhas abaixo:
+          # xcodebuild -workspace ios/Runner.xcworkspace \
+          #   -scheme Runner \
+          #   -configuration Release \
+          #   -destination 'generic/platform=iOS' \
+          #   -archivePath build/ios/Runner.xcarchive \
+          #   archive
+          # xcodebuild -exportArchive \
+          #   -archivePath build/ios/Runner.xcarchive \
+          #   -exportPath build/ios/iphoneos \
+          #   -exportOptionsPlist ios/ExportOptions.plist
+          
     artifacts:
+      - build/ios/iphoneos/*.app
       - build/ios/iphoneos/*.ipa
+      - ios/Runner.xcarchive
+      
     publishing:
       email:
         recipients:
           - paulojustino.dev@gmail.com
+        notify:
+          success: true
+          failure: true
