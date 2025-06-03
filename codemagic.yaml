@@ -1,9 +1,10 @@
 workflows:
   build-ios:
-    name: Build iOS with iOS 13.0
+    name: Build iOS with iOS 13.0 and Generate IPA
     environment:
       flutter: stable
       xcode: latest
+      cocoapods: default
     scripts:
       - name: Install Flutter dependencies
         script: |
@@ -69,8 +70,6 @@ workflows:
           EOF
           
           echo "Podfile created/updated successfully!"
-          echo "Contents of Podfile:"
-          cat ios/Podfile
           
       - name: Fix iOS deployment target in project files
         script: |
@@ -89,38 +88,61 @@ workflows:
             /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 13.0" ios/Flutter/AppFrameworkInfo.plist
           fi
           
-          echo "iOS deployment target configuration completed!"
-          
       - name: Install CocoaPods dependencies
         script: |
           echo "Installing CocoaPods dependencies..."
           cd ios && pod install --verbose
           
-      - name: Build iOS
+      - name: Build iOS without signing
         script: |
-          echo "Building iOS app..."
+          echo "Building iOS app without code signing..."
           flutter build ios --release --no-codesign
           
-      - name: Create IPA (optional)
+      - name: Create unsigned IPA
         script: |
-          echo "Creating IPA file..."
+          echo "Creating unsigned IPA..."
           mkdir -p build/ios/iphoneos
-          # Se você quiser criar um IPA, descomente as linhas abaixo:
-          # xcodebuild -workspace ios/Runner.xcworkspace \
-          #   -scheme Runner \
-          #   -configuration Release \
-          #   -destination 'generic/platform=iOS' \
-          #   -archivePath build/ios/Runner.xcarchive \
-          #   archive
-          # xcodebuild -exportArchive \
-          #   -archivePath build/ios/Runner.xcarchive \
-          #   -exportPath build/ios/iphoneos \
-          #   -exportOptionsPlist ios/ExportOptions.plist
+          
+          # Encontra o arquivo .app gerado
+          APP_PATH=$(find build/ios/iphoneos -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH="build/ios/iphoneos/Runner.app"
+          fi
+          
+          # Verifica se o .app existe na localização padrão do Flutter
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Looking for .app in Flutter build directory..."
+            FLUTTER_APP_PATH=$(find build/ios/iphoneos -name "*.app" -o -path "*/Release-iphoneos/*.app" | head -n 1)
+            if [ -n "$FLUTTER_APP_PATH" ]; then
+              APP_PATH="$FLUTTER_APP_PATH"
+            else
+              echo "Error: Could not find .app file"
+              echo "Build directory contents:"
+              find build -name "*.app" -type d
+              exit 1
+            fi
+          fi
+          
+          echo "Found .app at: $APP_PATH"
+          
+          # Cria um diretório Payload e copia o .app
+          rm -rf Payload
+          mkdir Payload
+          cp -r "$APP_PATH" Payload/
+          
+          # Cria o IPA (que é apenas um ZIP renomeado)
+          zip -r build/ios/iphoneos/Runner-unsigned.ipa Payload
+          
+          # Remove o diretório temporário
+          rm -rf Payload
+          
+          echo "Unsigned IPA created successfully!"
+          echo "Generated files:"
+          ls -la build/ios/iphoneos/
           
     artifacts:
-      - build/ios/iphoneos/*.app
       - build/ios/iphoneos/*.ipa
-      - ios/Runner.xcarchive
+      - build/ios/iphoneos/*.app
       
     publishing:
       email:
